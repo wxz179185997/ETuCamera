@@ -1,5 +1,6 @@
 package com.etu.camera;
 
+import android.annotation.TargetApi;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.os.Bundle;
@@ -78,8 +79,8 @@ public class TestActivity extends FragmentActivity {
         super.onResume();
         mCamera2.startBackgroundThread();
         if (mAutoFitTextureView.isAvailable()) {
-//            mCamera2.openCamera(mAutoFitTextureView.getWidth(), mAutoFitTextureView.getHeight());
-            mCamera2.startPreview();
+            mCamera2.openCamera(mAutoFitTextureView.getWidth(), mAutoFitTextureView.getHeight());
+//            mCamera2.startPreview();
 
         } else {
             mAutoFitTextureView.setSurfaceTextureListener(mSurfaceTextureListener);

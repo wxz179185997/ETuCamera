@@ -97,7 +97,8 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
     private MediaRecorder mMediaRecorder;
     private boolean mIsRecordingVideo;
     private String mVideoAbsolutePath;
-
+    public boolean isCameraFront=false;
+    private Rect mScaleZoom;
     //Test
     public float finger_spacing = 0;
     public int zoom_level = 1;
@@ -185,8 +186,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
         public void onImageAvailable(ImageReader reader) {
             Log.e("hehe", "onImageAvailable");
             mCameraHandler.post(new Camera2ImageSaveUtils(reader.acquireNextImage(), getImageFile()));
-//            startPreview();
-//            unlockFocus();
+            startPreview();
 
         }
     };
@@ -202,7 +202,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
                 }
                 case STATE_WAITING_LOCK: {
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
-
+                    Log.e(TAG, "afState---  " + afState);
                     if (afState == null) {
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState || CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
@@ -251,7 +251,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
 
         @Override
         public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
-//            process(result);
+            process(result);
         }
 
     };
@@ -378,7 +378,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
             };
 
             mCaptureSession.stopRepeating();
-            mCaptureSession.abortCaptures();
+//            mCaptureSession.abortCaptures();//该方法华为手机NOTE 8 不知道，其他机型暂未测试
             mCaptureSession.capture(captureBuilder.build(), CaptureCallback, null);
         } catch (CameraAccessException e) {
             Log.e(TAG, "captureStillPicture----  " + e.toString());
@@ -434,10 +434,8 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
 
     private void lockFocus() {
         try {
-            // This is how to tell the camera to lock focus.
             mCaptureBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
-            // Tell #mCaptureCallback to wait for the lock.
             mState = STATE_WAITING_LOCK;
             mCaptureSession.capture(mCaptureBuilder.build(), mCaptureSessionBack,
                     mCameraHandler);
@@ -495,6 +493,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
             // Find out if we need to swap dimension to get the preview size relative to sensor
             // coordinate.
             int displayRotation = mActivity.getWindowManager().getDefaultDisplay().getRotation();
+
             //noinspection ConstantConditions
             mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
             boolean swappedDimensions = false;
@@ -617,7 +616,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
 
     private void startCameraPreview() {
         try {
-            if (mTextureView == null || !mTextureView.isAvailable()) {
+            if (mTextureView == null || !mTextureView.isAvailable()||mCameraDevice==null) {
                 return;
             }
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
@@ -678,15 +677,17 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
             releaseCamera();
             if (mCameraId.equals("0")) {
                 mCameraId = "1";
-
+                isCameraFront=true;
             } else if (mCameraId.equals("1")) {
                 mCameraId = "0";
+                isCameraFront=false;
             }
-            setUpCameraOutputs(mTextureView.getWidth(),mTextureView.getHeight());
             try {
                 if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                     throw new RuntimeException("打开相机超时");
                 }
+                mCaptureBuilder.set(CaptureRequest.SCALER_CROP_REGION, new Rect());
+
                 manager.openCamera(mCameraId, mCameraStateBack, mCameraHandler);
             } catch (CameraAccessException e) {
                 e.printStackTrace();
@@ -702,10 +703,10 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
     private void releaseCamera() {
         try {
             mCameraOpenCloseLock.acquire();
-//            if (null != mCaptureSession) {
-//                mCaptureSession.close();
-//                mCaptureSession = null;
-//            }
+            if (null != mCaptureSession) {
+                mCaptureSession.close();
+                mCaptureSession = null;
+            }
             if (null != mCameraDevice) {
                 mCameraDevice.close();
                 mCameraDevice = null;
@@ -722,48 +723,48 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
      * 拍照
      */
     public void takePicture() {
-//        openCamera(mTextureView.getWidth(),mTextureView.getHeight());
 //        lockFocus();
-//        captureStillPicture();
-
         try {
             if (mCameraDevice == null) {
                 return;
             }
             // 创建拍照请求
-            mCaptureBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-            // 设置自动对焦模式
-            // 将imageReader的surface设为目标
-            mCaptureBuilder.addTarget(mImageReader.getSurface());
-            // 获取设备方向
+            final CaptureRequest.Builder captureBuilder =
+                    mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+
+            captureBuilder.addTarget(mImageReader.getSurface());
+
             int rotation = mActivity.getWindowManager().getDefaultDisplay().getRotation();
-            // 根据设备方向计算设置照片的方向
-            mCaptureBuilder.set(CaptureRequest.JPEG_ORIENTATION
-                    , ORIENTATIONS.get(rotation));// 停止连续取景
-//            mCaptureBuilder.set(CaptureRequest.JPEG_ORIENTATION
-//                    , 90);
+            //获取屏幕方向
+            mCaptureBuilder.addTarget(mImageReader.getSurface());
+            //isCameraFront是自定义的一个boolean值，用来判断是不是前置摄像头，是的话需要旋转180°，不然拍出来的照片会歪了
+            if (isCameraFront) {
+                mCaptureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(Surface.ROTATION_180));
+            } else {
+                mCaptureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
+            }
+
+
+            mCaptureBuilder.set(CaptureRequest.SCALER_CROP_REGION, mScaleZoom);
+
 
             mCaptureSession.stopRepeating();
-            mCaptureSession.abortCaptures();
-            //拍照
-            CaptureRequest captureRequest = mCaptureBuilder.build();
-
-            CameraCaptureSession.CaptureCallback CaptureCallback
+//            mCaptureSession.abortCaptures();//该方法华为Note 8不支持
+            CameraCaptureSession.CaptureCallback captureCallback
                     = new CameraCaptureSession.CaptureCallback() {
 
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
-//                    Toast.makeText(mActivity, "Saved: " + mFile, Toast.LENGTH_LONG).show();
-                    Log.e(TAG, "onCaptureCompleted");
-//                    unlockFocus();
+//
                 }
             };
-            //设置拍照监听
-            mCaptureSession.capture(captureRequest, CaptureCallback
-                    , null);
+
+            mCaptureSession.capture(mCaptureBuilder.build(), captureCallback
+                    , mCameraHandler);
         } catch (CameraAccessException e) {
+            Log.e(TAG, "takePicture--  " + e.toString());
             e.printStackTrace();
         }
 
@@ -798,6 +799,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
                     cropW -= cropW & 3;
                     cropH -= cropH & 3;
                     Rect zoom = new Rect(cropW, cropH, rect.width() - cropW, rect.height() - cropH);
+                    mScaleZoom=zoom;
                     mCaptureBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoom);
                 }
                 finger_spacing = currenFingerSpace;
@@ -901,6 +903,7 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
             Surface recorderSurface = mMediaRecorder.getSurface();
             surfaces.add(recorderSurface);
             mCaptureBuilder.addTarget(recorderSurface);
+            mCaptureBuilder.set(CaptureRequest.SCALER_CROP_REGION, mScaleZoom);
 
 
             mCameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
@@ -1039,8 +1042,6 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("打开相机超时");
             }
-            setUpCameraOutputs(mTextureView.getWidth(), mTextureView.getHeight());
-            configureTransform(mTextureView.getWidth(), mTextureView.getHeight());
             manager.openCamera(mCameraId, mCameraStateBack, mCameraHandler);
 //            startVideoPreview();
         } catch (CameraAccessException e) {
@@ -1090,3 +1091,4 @@ public class CameraView2 implements AutoFitTextureView.OnScaleGestureListener {
 
     }
 }
+
