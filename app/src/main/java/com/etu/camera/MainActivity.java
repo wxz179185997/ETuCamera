@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.etu.cameralibrary.CameraSurfaceView;
 
@@ -21,35 +22,78 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements Camera.ShutterCallback {
     private Camera mCamera;
-    private CameraSurfaceView mPreview;
     private TextView mTvPhoto;
     private String PATH = Environment
             .getExternalStorageDirectory() + "/DCIM/Camera/";// 保存图像的路径;
+    private TextView mIvSwitch;
+    private int mCurrentCameraId = 0;
+    private FrameLayout mFrameLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mTvPhoto = findViewById(R.id.tv_photo);
+        mIvSwitch = findViewById(R.id.tv_switch);
         mCamera = getCamera();
         paramters(mCamera);
         // 创建Preview view并将其设为activity中的内容
-        mPreview = new CameraSurfaceView(this, mCamera);
-        FrameLayout preview = findViewById(R.id.frame_layout);
-        preview.addView(mPreview);
+        CameraSurfaceView mPreview = new CameraSurfaceView(this);
+        mPreview.setCurrentCamera(mCamera);
+        mFrameLayout = findViewById(R.id.frame_layout);
+        mFrameLayout.addView(mPreview);
         mTvPhoto.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 mCamera.takePicture(MainActivity.this, rawPictureCallBack, jpegPictureCallBack);
             }
         });
+        mIvSwitch.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchCamera();
+            }
+        });
+
+
+    }
+
+    private void switchCamera() {
+        int cameraCount;
+        Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+        cameraCount = Camera.getNumberOfCameras();
+        if (cameraCount == 1 && mCurrentCameraId == 0) {
+            Toast.makeText(this, "当前设备只支持后置相机", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (cameraCount == 1 && mCurrentCameraId == 10) {
+            Toast.makeText(this, "当前设备只支持前置相机", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            mCurrentCameraId = 0;
+        } else if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
+            mCurrentCameraId = 1;
+        }
+        releaseCamera();
+        try {
+            mCamera = Camera.open(mCurrentCameraId);
+        } catch (Exception e) {
+            Log.e("hehe", "摄像头不可用");
+        }
+        paramters(mCamera);
+        CameraSurfaceView preview = new CameraSurfaceView(this);
+        preview.setCurrentCamera(mCamera);
+        mFrameLayout.removeAllViews();
+        mFrameLayout.addView(preview);
 
     }
 
     public Camera getCamera() {
         Camera camera = null;
         try {
-            camera = Camera.open(); // 试图获取Camera实例
+            camera = Camera.open(mCurrentCameraId); // 试图获取Camera实例
         } catch (Exception e) {
             // 摄像头不可用（正被占用或不存在）
             Log.e("hehe", "摄像头不可用");
@@ -76,6 +120,10 @@ public class MainActivity extends AppCompatActivity implements Camera.ShutterCal
         }
     }
 
+
+    /**
+     * 相机RAW回调
+     */
     Camera.PictureCallback rawPictureCallBack = new Camera.PictureCallback() {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
@@ -83,7 +131,9 @@ public class MainActivity extends AppCompatActivity implements Camera.ShutterCal
         }
     };
 
-
+    /**
+     * 相机JPEG回调
+     */
     Camera.PictureCallback jpegPictureCallBack = new Camera.PictureCallback() {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
@@ -139,26 +189,12 @@ public class MainActivity extends AppCompatActivity implements Camera.ShutterCal
                 mCamera.stopPreview();
             } catch (Exception e) {
                 e.printStackTrace();
-            }}
+            }
+        }
     }
 
     /* 相机初始化的method */
     private void initCamera() {
-//        if//            try {
-////                Camera.Parameters parameters = mCamera.getParameters();
-////                /*
-////                 * 设定相片大小为1024*768， 格式为JPG
-////                 */
-////                // parameters.setPictureFormat(PixelFormat.JPEG);
-////                parameters.setPictureSize(1024, 768);
-////                mCamera.setParameters(parameters);
-////                /* 打开预览画面 */
-////                mCamera.startPreview();
-////            } catch (Exception e) {
-////                e.printStackTrace();
-////            }
-////        } (mCamera != null) {
-
         paramters(mCamera);
         mCamera.startPreview();
     }
@@ -204,4 +240,16 @@ public class MainActivity extends AppCompatActivity implements Camera.ShutterCal
         return returnBm;
     }
 
+    /**
+     * 释放Camera
+     */
+    private void releaseCamera() {
+        if (mCamera != null) {
+            mCamera.setPreviewCallback(null);
+            mCamera.stopPreview();
+            mCamera.release();
+            mCamera = null;
+        }
+
+    }
 }

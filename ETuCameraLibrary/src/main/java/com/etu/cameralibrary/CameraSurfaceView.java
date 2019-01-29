@@ -1,7 +1,6 @@
 package com.etu.cameralibrary;
 
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.util.AttributeSet;
@@ -17,27 +16,31 @@ import java.util.List;
 
 public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Callback, View.OnTouchListener, Camera.AutoFocusCallback {
     public final String TAG = CameraSurfaceView.class.getSimpleName();
-    public TakePhotoListener mListener;
     private SurfaceHolder mSurfaceHolder;
     private Camera mCamera;
+    private Activity mActivity;
 
-
-    public CameraSurfaceView(Activity context, Camera camera) {
+    public CameraSurfaceView(Activity context) {
         this(context, null, 0);
-        mCamera = camera;
 
-        setOnTouchListener(this);
-        setCameraDisplayOrientation(context, 0, mCamera);
     }
 
-    public CameraSurfaceView(Context context, AttributeSet attrs) {
+    public CameraSurfaceView(Activity context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public CameraSurfaceView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
+    public CameraSurfaceView(Activity activity, AttributeSet attrs, int defStyleAttr) {
+        super(activity, attrs, defStyleAttr);
+        this.mActivity = activity;
         mSurfaceHolder = getHolder();
         mSurfaceHolder.addCallback(this);
+    }
+
+
+    public void setCurrentCamera(Camera camera) {
+        mCamera = camera;
+        setOnTouchListener(this);
+        setCameraDisplayOrientation(mActivity, 0, mCamera);
     }
 
     @Override
@@ -141,6 +144,8 @@ public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Call
             Camera.Parameters parameters = mCamera.getParameters(); // 先获取当前相机的参数配置对象
             parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO); // 设置聚焦模式 FOCUS_MODE_CONTINUOUS_VIDEO
             Log.d(TAG, "parameters.getMaxNumFocusAreas() : " + parameters.getMaxNumFocusAreas());
+
+            //获取支持的最大焦点区域数.
             if (parameters.getMaxNumFocusAreas() > 0) {
                 List<Camera.Area> focusAreas = new ArrayList<Camera.Area>();
                 focusAreas.add(new Camera.Area(rect, 1000));
@@ -156,14 +161,4 @@ public class CameraSurfaceView extends SurfaceView implements SurfaceHolder.Call
     public void onAutoFocus(boolean success, Camera camera) {
         Log.e("hehe", "----   " + success);
     }
-
-    public interface TakePhotoListener {
-        void takePhoto();
-    }
-
-
-    public void setTakePhotoListener(TakePhotoListener listener) {
-        this.mListener = listener;
-    }
-
 }

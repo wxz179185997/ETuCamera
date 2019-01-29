@@ -1,25 +1,35 @@
-package com.etu.cameralibrary;
+package com.etu.cameralibrary.utils;
 
 import android.media.Image;
 import android.util.Log;
+
+import com.etu.cameralibrary.CameraView2;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-class Camera2ImageSaveUtils implements Runnable {
+public class Camera2ImageSaveUtils implements Runnable {
 
     /**
      * JPEG 格式
      */
     private final Image mImage;
     private final File mFile;
+    private CameraView2.TakePhotoListener mTakePhotoListener;
 
-    Camera2ImageSaveUtils(Image image, File file) {
-        Log.e("hehe","Camera2ImageSaveUtils-- "+System.currentTimeMillis());
+
+    public Camera2ImageSaveUtils(Image image, File file) {
         mImage = image;
         mFile = file;
+    }
+
+
+    public Camera2ImageSaveUtils(Image image, File file, CameraView2.TakePhotoListener listener) {
+        mImage = image;
+        mFile = file;
+        this.mTakePhotoListener = listener;
     }
 
     @Override
@@ -33,6 +43,8 @@ class Camera2ImageSaveUtils implements Runnable {
             output.write(bytes);
         } catch (IOException e) {
             e.printStackTrace();
+            if (mTakePhotoListener != null)
+                mTakePhotoListener.takePhotoFailure(e.toString());
         } finally {
             mImage.close();
             if (null != output) {
@@ -40,8 +52,12 @@ class Camera2ImageSaveUtils implements Runnable {
                     output.close();
                 } catch (IOException e) {
                     e.printStackTrace();
+                    if (mTakePhotoListener != null)
+                        mTakePhotoListener.takePhotoFailure(e.toString());
                 }
             }
+            if (mTakePhotoListener != null)
+                mTakePhotoListener.takePhotoSuccess(mFile);
         }
     }
 }

@@ -3,9 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-
-    <com.etu.cameralibrary.AutoFitTextureView
-        android:id="@+id/auto_textureView"
+    <com.etu.cameralibrary.CameraSurfaceView
+        android:id="@+id/frame_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="visible" />
@@ -21,11 +20,25 @@
         android:src="@mipmap/ic_switch_camera" />
 
 
-    <com.etu.cameralibrary.CaptureButton
-        android:id="@+id/capture_button"
-        android:layout_width="70dp"
-        android:layout_height="70dp"
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="40dp" />
+        android:layout_marginBottom="80dp">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/take_photo_second_circle" />
+
+        <ImageView
+            android:id="@+id/iv_take_photo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:src="@drawable/take_photo_first_circle" />
+    </RelativeLayout>
+
+
 </RelativeLayout>
